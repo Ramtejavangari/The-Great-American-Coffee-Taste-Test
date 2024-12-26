@@ -1,0 +1,384 @@
+---
+title: "The Great American Coffee Taste Test"
+subtitle: "INFO 526 - Fall 2023 - Project 1"
+author: "Data Brew"
+title-slide-attributes:
+  data-background-image: images/watercolour_sys02_img34_teacup-ocea.jpg
+  data-background-size: stretch
+  data-background-opacity: "0.7"
+  data-slide-number: none
+format:
+  revealjs:
+    theme:  ['data/customtheming.scss']
+  
+editor: visual
+execute:
+  echo: false
+---
+
+```{r}
+#| label: load-packages
+#| include: false
+
+# Load packages here
+pacman::p_load(tidymodels,
+               tidyverse)
+
+```
+
+```{r}
+#| label: setup
+#| include: false
+
+# Plot theme
+ggplot2::theme_set(ggplot2::theme_minimal(base_size = 11))
+
+# For better figure resolution
+knitr::opts_chunk$set(
+  fig.retina = 3, 
+  dpi = 300, 
+  fig.width = 6, 
+  fig.asp = 0.618 
+  )
+```
+
+```{r}
+#| label: load-data
+#| include: false
+# Load data here
+data(mtcars)
+mtcars$speed <- mtcars$hp / mtcars$wt
+
+data("penguins")
+```
+
+# Why Coffee Dataset?
+
+## 
+
+:::: columns
+::: {.column width="40%"}
+-   NIH Survey stats: 75% of adults in USA drink coffee. Almost 50% drink it on daily basis. 
+-   Coffee is a significant part of American Culture and Daily life. 
+-   Widespread prevalence of coffee consumption makes it an ideal subject for data analysis.
+-   It offers insights into behaviour patterns that affect a large portion of population.
+:::
+::::
+
+## First Question
+
+Why do people drink coffee, where do they drink it, what is their roast preference, and how much do they spend on it?
+
+## Code 1
+
+`{#} # coffee_survey <- readr::read_csv('https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2024/2024-05-14/coffee_survey.csv')`
+
+```{r}
+coffee_survey <- readr::read_csv('https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2024/2024-05-14/coffee_survey.csv')
+
+
+coffee_Q1 <- coffee_survey[, c("why_drink", "roast_level", "total_spend", "where_drink")]
+# 
+coffee_Q1 <- coffee_survey[, c("why_drink", "roast_level", "total_spend", "where_drink")]
+# 
+# 
+na.omit(coffee_Q1)
+# 
+# 
+ coffee_Q1 <- na.omit(coffee_Q1[, c("why_drink", "roast_level", "total_spend", "where_drink")])
+
+
+
+
+
+
+
+
+
+
+```
+
+## Plot Text
+
+:::: columns
+::: {.column width="50%"}
+-   Most popular reason : “Tastes_good” (94%).
+
+-   Caffeine (56%)  Ritual (54%) 
+
+-   The least common “To Poop” (13%) 
+
+-   Roast Preference” consistent across  reasons.
+
+-   Light” roast - most popular (\~50%) and “Dark” Roast least popular (\~10%). 
+
+-   Dark Roast for “To_poop”(13%).
+:::
+::::
+
+## Plot 1
+
+::: columns
+```{r}
+library(dplyr)
+
+library(tidyr)
+
+library(ggplot2)
+
+# Calculate total percentages for each reason
+
+reason_counts <- coffee_Q1 %>%
+
+mutate(
+
+tastes_good = grepl("It tastes good", why_drink),
+
+ritual = grepl("I need the ritual", why_drink),
+
+caffeine = grepl("I need the caffeine", why_drink),
+
+To_Poop = grepl("It makes me go to the bathroom", why_drink)
+
+) %>%
+
+pivot_longer(cols = tastes_good:To_Poop, names_to = "reason", values_to = "selected") %>%
+
+filter(selected) %>%
+
+count(reason) %>%
+
+mutate(percentage = (n / nrow(coffee_Q1)) * 100)
+
+# Calculate percentages for each roast level within each reason
+
+roast_level_counts <- coffee_Q1 %>%
+
+mutate(
+
+tastes_good = grepl("It tastes good", why_drink),
+
+ritual = grepl("I need the ritual", why_drink),
+
+caffeine = grepl("I need the caffeine", why_drink),
+To_Poop = grepl("It makes me go to the bathroom", why_drink)
+
+) %>%
+
+pivot_longer(cols = tastes_good:To_Poop, names_to = "reason", values_to = "selected") %>%
+
+filter(selected) %>%
+
+filter(roast_level %in% c("Light", "Medium", "Dark")) %>%
+
+count(reason, roast_level) %>%
+
+group_by(reason) %>%
+
+mutate(percentage = (n / sum(n)) * 100)
+
+# Define roast colors
+
+roast_colors <- c("Light" = "wheat", "Medium" = "wheat4", "Dark" = "chocolate4")
+
+# Plot original bars for reasons
+
+p1 <- ggplot(reason_counts, aes(x = reorder(reason, -percentage), y = percentage)) +
+
+geom_bar(stat = "identity", fill = "skyblue") +
+
+labs(
+
+title = "Percentage of Reasons for Drinking Coffee (with Roast Level Breakdown)",
+
+x = "Reason",
+
+y = "Percentage (%)"
+
+) +
+
+scale_y_continuous(breaks = seq(0, 100, 10), labels = scales::percent_format(scale = 1)) +
+
+theme_minimal() +
+
+coord_flip()
+
+# Add the roast level bars just above the original bars
+
+p2 <- ggplot(roast_level_counts, aes(x = reorder(reason, +percentage), y = percentage, fill = roast_level)) +
+
+geom_bar(stat = "identity", position = "stack", width = 0.4) +# Narrow bars for roast levels
+
+scale_fill_manual(values = roast_colors) +
+
+theme_minimal() +
+
+coord_flip() +
+
+theme(axis.title.x = element_blank(), axis.text.x = element_blank(), axis.ticks.x = element_blank())
+
+# Combine the two plots by overlaying them
+
+p1 + geom_bar(data = roast_level_counts, aes(y = percentage, fill = roast_level),
+
+stat = "identity", position = position_dodge(width = 1), width = 0.4) +
+theme_minimal() +
+
+scale_fill_manual(values = roast_colors) +
+
+theme(legend.position = "bottom")
+```
+:::
+
+\
+
+## 
+
+```{r}
+
+coffee_Q1 <- na.omit(coffee_survey[, c("why_drink", "roast_level", "total_spend", "where_drink")])
+
+coffee_Q1$roast_level[coffee_Q1$roast_level == "Blonde"] <- NA
+
+coffee_Q1$roast_level[coffee_Q1$roast_level == "Italian"] <- NA
+
+coffee_Q1$roast_level[coffee_Q1$roast_level == "Nordic"] <- NA
+
+coffee_Q1$roast_level[coffee_Q1$roast_level == "French"] <- NA
+
+coffee_Q1 <- coffee_Q1[!is.na(coffee_Q1$roast_level), ]
+
+
+library(tidyr)
+
+# Separate each reason into individual rows
+
+Q1_separated <- coffee_Q1 %>%
+
+separate_rows(why_drink, sep = ",\\s*") %>%
+
+separate_rows(where_drink, sep = ",\\s*")
+
+data_Q1_part2 <- Q1_separated %>%
+
+count(where_drink, total_spend)
+
+library(dplyr)
+
+# Remove "None of these" from the where_drink column
+
+data_Q1_part3 <- data_Q1_part2 %>%
+
+filter(where_drink != "None of these")
+
+
+```
+
+## Plot Text
+
+:::: columns
+::: {.column width="50%"}
+-   **Majority of people drink coffee at home.**
+
+-   **most common spending range across all locations is (\$20-\$60)**
+
+-   **Lowest spending range(\<\$20) and highest (\>\$100) have fewer people across all locations.**
+
+-   **Surprisingly the “at home” category has maximum number of people spending \>\$100 for coffee.**
+
+-   **Possible Reasons: Frequent Consumption,  Premium Coffee Beans, or  Data Bias .**
+:::
+::::
+
+## Plot 2
+
+:::: columns
+**\
+**
+
+::: {.column width="50%"}
+```{r, warning=FALSE, fig.width=5.5}
+a <- ggplot(data_Q1_part3, aes(x = where_drink, y = total_spend, fill = n)) +
+
+geom_tile(color = "white") +
+
+geom_text(aes(label = n), color = "black") +
+
+scale_fill_gradient(low = "lightyellow", high = "darkred", name = "Count") +
+
+labs(title = "Distribution of Spending by Location",
+
+x = "Where Drink",
+
+y = "Total Spend Range") +
+
+theme_minimal() +
+
+theme(panel.grid.major = element_blank(),
+
+panel.grid.minor = element_blank())
+
+a
+```
+:::
+::::
+
+# Second Question
+
+## How do age and gender impact preferences for various types of coffee and the use of additives?
+
+-   **Regular drip coffee is the most favored across all ages, particularly among older individuals aged 55-64**
+
+<!-- -->
+
+-   **Younger generation prefer blended drinks, like Frappuccino**
+
+<!-- -->
+
+-   **Espresso and Latte show balanced appeal across a wide age range**
+
+<!-- -->
+
+-   **Cold brew, Cortado and Americano are less preferred, with modest popularity in the middle-aged demographic**
+
+## Plot
+
+```{r}
+age_palette <- c("#3B2A1E", "#E3B89A", "#D9C9B0", "#BFA7A1", "#D2B48C", "#A57B52", "#8B4513", "#4B3D33")
+
+# Circular bar plot with fill by age
+
+ggplot(Q2_aggregated, aes(x = favorite, y = proportion, fill = age)) +
+
+geom_bar(stat = "identity", position = "stack", width = 0.9) +
+
+coord_polar(start = 0) +
+
+scale_fill_manual(values = age_palette, name = "Age") +
+
+labs(title = "Preferences for Coffee type by age",
+
+x = "", y = "") +
+
+theme_minimal() +
+
+theme(
+
+axis.text.x = element_text(size = 8, color = "black", face = "bold"),
+
+axis.title = element_blank(),
+
+panel.grid = element_blank(),
+
+legend.position = "right"
+
+)
+```
+
+# Wrap up
+
+## Feeling adventurous?
+
+-   You are welcomed to use the default styling of the slides. In fact, that's what I expect majority of you will do. You will differentiate yourself with the content of your presentation.
+
+-   But some of you might want to play around with slide styling. Some solutions for this can be found at https://quarto.org/docs/presentations/revealjs.
